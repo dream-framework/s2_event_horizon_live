@@ -404,32 +404,120 @@ function drawInteractiveChart(topic) {
   els.chartLegend.innerHTML = chartSeries.filter(s => s.name !== 'zero').map(s => `<span><i style="background:${s.lineStyle?.color || c.bad}"></i>${s.name}</span>`).join('');
 }
 
+function tailReadiness(topic) {
+  const fit = topic.fit || {};
+  const binHours = state.data?.bin_hours || 3;
+
+  // Formal S2 threshold used by the backend:
+  // at least 4 nonzero post-peak bins and at least 2 tail articles.
+  const minBins = 4;
+  const minArticles = 2;
+  const minSpanHours = (minBins - 1) * binHours;
+
+  const series = topic.series || [];
+  const observedTail = series
+    .filter(d => Number(d.x_hours) >= 0)
+    .filter(d => observedValue(d) !== null);
+
+  const nonzeroBins = observedTail
+    .filter(d => Number(observedValue(d)) > 0.001)
+    .length;
+
+  const tailSpanHours = observedTail.length
+    ? Math.max(...observedTail.map(d => Number(d.x_hours) || 0))
+    : 0;
+
+  const articleCount = topic.article_count || 0;
+
+  const binScore = Math.min(1, nonzeroBins / minBins);
+  const articleScore = Math.min(1, articleCount / minArticles);
+  const spanScore = Math.min(1, tailSpanHours / minSpanHours);
+
+  // Use the strictest requirement as readiness.
+  const score = Math.min(binScore, articleScore, spanScore);
+  const percent = Math.max(0, Math.min(100, Math.round(score * 100)));
+
+  const needBins = Math.max(0, minBins - nonzeroBins);
+  const needArticles = Math.max(0, minArticles - articleCount);
+  const needHours = Math.max(0, Math.ceil(minSpanHours - tailSpanHours));
+
+  const needs = [];
+  if (needBins > 0) needs.push(`+${needBins} bins`);
+  if (needArticles > 0) needs.push(`+${needArticles} articles`);
+  if (needHours > 0) needs.push(`+${needHours}h span`);
+
+  return {
+    percent,
+    nonzeroBins,
+    tailSpanHours,
+    needText: needs.length ? `needs ${needs.join(' / ')}` : 'ready for formal fit',
+    label: fit.fit_status === 'formal' ? 'formal S2' : `${percent}% tail ready`
+  };
+}
+
 function renderTopicBoard() {
   const topics = getTopicsSorted();
+
   if (!topics.length) {
     els.topicBoard.innerHTML = '<div class="empty-state">No topic cycles yet.</div>';
     return;
   }
-  const maxArticles = Math.max(1, ...topics.map(t => t.article_count || 0));
+
   els.topicBoard.innerHTML = topics.map(topic => {
     const fit = topic.fit || {};
     const isFormal = fit.fit_status === 'formal';
+    const readiness = tailReadiness(topic);
+
     const realSeries = (topic.series || []).filter(d => observedValue(d) !== null);
-    const retained = realSeries.length ? observedValue(realSeries[realSeries.length - 1]) : (topic.series?.length ? fitValue(topic.series[topic.series.length - 1], topic) : 0);
+    const retained = realSeries.length
+      ? observedValue(realSeries[realSeries.length - 1])
+      : (topic.series?.length ? fitValue(topic.series[topic.series.length - 1], topic) : 0);
+
     const newest = topicNewest(topic);
-    const badge = isFormal ? pct(retained) : 'LIVE';
-    const width = isFormal ? Math.min(100, Math.round((retained || 0) * 100)) : Math.min(100, Math.round(((topic.article_count || 0) / maxArticles) * 100));
-    const statusText = isFormal ? topic.phase : 'collecting post-peak evidence';
+
+    const badge = isFormal
+      ? pct(retained)
+      : `${readiness.percent}%`;
+
+    const width = isFormal
+      ? Math.min(100, Math.round((retained || 0) * 100))
+      : readiness.percent;
+
+    const statusText = isFormal
+      ? topic.phase
+      : `${readiness.label} · ${readiness.needText}`;
+
+    const barTitle = isFormal
+      ? `Retained signal: ${badge}`
+      : `Tail readiness: ${readiness.percent}%`;
+
     return `<article class="topic-card ${topic.key === state.selectedTopic ? 'active' : ''}" data-topic="${topic.key}">
-      <div class="topic-top"><span class="topic-name">${topic.label}</span><span class="topic-badge">${badge}</span></div>
-      <p class="topic-meta"><span>${statusText}</span><span>N ${topic.article_count}</span><span>new ${newest ? ageLabel(new Date(newest).toISOString()) : '-'}</span><span>tau ${fmtHours(fit.tau_hours)}</span><span>beta ${fmtNumber(fit.beta, 2)}</span><span>sleep ${topic.circadian_bias == null ? '-' : pct(topic.circadian_bias)}</span></p>
-      <div class="bar"><i style="width:${width}%"></i></div>
+      <div class="topic-top">
+        <span class="topic-name">${topic.label}</span>
+        <span class="topic-badge">${badge}</span>
+      </div>
+
+      <p class="topic-meta">
+        <span>${statusText}</span>
+        <span>N ${topic.article_count}</span>
+        <span>new ${newest ? ageLabel(new Date(newest).toISOString()) : '-'}</span>
+        <span>tau ${fmtHours(fit.tau_hours)}</span>
+        <span>beta ${fmtNumber(fit.beta, 2)}</span>
+        <span>sleep ${topic.circadian_bias == null ? '-' : pct(topic.circadian_bias)}</span>
+      </p>
+
+      <div class="bar" title="${barTitle}">
+        <i style="width:${width}%"></i>
+      </div>
     </article>`;
   }).join('');
-  els.topicBoard.querySelectorAll('.topic-card').forEach(card => card.addEventListener('click', () => {
-    state.selectedTopic = card.dataset.topic;
-    render();
-  }));
+
+  els.topicBoard.querySelectorAll('.topic-card').forEach(card => {
+    card.addEventListener('click', () => {
+      state.selectedTopic = card.dataset.topic;
+      render();
+    });
+  });
 }
 
 function renderTopicTable() {
