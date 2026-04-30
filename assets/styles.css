@@ -334,3 +334,26 @@ tbody tr:hover td { background: color-mix(in srgb, var(--accent) 8%, transparent
   .topic-board, .story-list, .source-list, .table-wrap { max-height: 320px; height: auto; }
   .lede { white-space: normal; }
 }
+
+/* Compact metric-pill band */
+.metric-strip {
+  margin-top: 0;
+  padding-top: .28rem;
+  padding-bottom: .32rem;
+  gap: .45rem;
+}
+
+.metric {
+  min-height: 3.25rem;
+  padding: .42rem .62rem;
+}
+
+.metric strong {
+  margin-top: .18rem;
+  line-height: 1.05;
+}
+
+.metric span {
+  margin-top: .1rem;
+  line-height: 1.1;
+}
