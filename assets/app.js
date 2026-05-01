@@ -468,11 +468,11 @@ function drawInteractiveChart(topic) {
     },
     legend: { show: false },
     toolbox: {
-      show: state.chartToolsVisible,
+      show: true,
       left: 'center',
       top: 8,
       orient: 'horizontal',
-      itemSize: 14,
+      itemSize: 12,
       itemGap: 10,
       feature: {
         dataZoom: {},
