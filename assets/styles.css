@@ -163,7 +163,8 @@ button:hover { transform: translateY(-1px); filter: brightness(1.06); }
 }
 .status-dot.ok { background: var(--good); box-shadow: 0 0 13px var(--good); }
 .status-dot.err { background: var(--bad); box-shadow: 0 0 13px var(--bad); }
-. { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .stats-grid div {
   padding: 5px 6px;
   border: 1px solid var(--line);
