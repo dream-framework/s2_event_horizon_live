@@ -569,6 +569,8 @@ def build_output(history: List[Dict[str, Any]], sources: List[Dict[str, str]], e
             "raw_histogram_counts": raw_counts,
             "circadian_factors": [round(float(v), 6) for v in bin_factors],
             "circadian_bias": None if bias is None else round(float(bias), 6),
+            "peak_bin_index": fit.get("peak_bin_index"),
+            "tail_bins": fit.get("tail_bins"),
             "fit": {k: fit.get(k) for k in ["tau_hours", "beta", "half_life_hours", "log_r2", "delta_aic_vs_exp", "coherence_left_hours", "fit_status", "fit_reason"]},
             "series": fit["series"],
         })
@@ -582,9 +584,11 @@ def build_output(history: List[Dict[str, Any]], sources: List[Dict[str, str]], e
             "histogram_counts": [round(float(v), 6) for v in corrected_counts],
             "raw_histogram_counts": raw_counts,
             "circadian_factors": [round(float(v), 6) for v in bin_factors],
-            "circadian_bias": circadian_bias(raw_counts, corrected_counts),
+            "circadian_bias": None if bias is None else round(float(bias), 6),
+            "peak_bin_index": fit.get("peak_bin_index"),
+            "tail_bins": fit.get("tail_bins"),
             "fit": {k: fit.get(k) for k in ["tau_hours", "beta", "half_life_hours", "log_r2", "delta_aic_vs_exp", "coherence_left_hours", "fit_status", "fit_reason"]},
-            "series": []
+            "series": fit["series"],
         }]
     articles = sorted(recent, key=lambda r: r.get("published_at", ""), reverse=True)[:180]
     return {
