@@ -439,8 +439,8 @@ function drawInteractiveChart(topic) {
     grid: {
       left: 48,
       right: state.signal === 'corrected' && state.view !== 'residuals' ? 52 : 24,
-      top: 20,
-      bottom: 70,
+      top: 46,
+      bottom: 62,
       containLabel: true
     },
     tooltip: {
@@ -470,7 +470,7 @@ function drawInteractiveChart(topic) {
     toolbox: {
       show: true,
       right: 6,
-      top: 0,
+      top: 8,
       iconStyle: { borderColor: c.muted },
       emphasis: { iconStyle: { borderColor: c.accent } },
       feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: { backgroundColor: state.theme === 'dark' ? '#0a0f1e' : '#eef3fb' } }
