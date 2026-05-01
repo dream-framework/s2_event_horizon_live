@@ -163,15 +163,27 @@ button:hover { transform: translateY(-1px); filter: brightness(1.06); }
 }
 .status-dot.ok { background: var(--good); box-shadow: 0 0 13px var(--good); }
 .status-dot.err { background: var(--bad); box-shadow: 0 0 13px var(--bad); }
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+. { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .stats-grid div {
-  padding: 7px 6px;
+  padding: 5px 6px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel-2) 72%, transparent);
 }
-.stats-grid b { display: block; font-size: 1.02rem; line-height: .95; }
-.stats-grid span { color: var(--muted); font-size: .64rem; }
+
+.stats-grid b {
+  display: block;
+  font-size: 1.02rem;
+  line-height: .9;
+}
+
+.stats-grid span {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: .62rem;
+  line-height: 1;
+}
 
 .workspace {
   min-height: 0;
