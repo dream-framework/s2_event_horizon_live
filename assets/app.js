@@ -141,9 +141,93 @@ function topicNewest(topic) {
   return matches.map(a => new Date(a.published_at).getTime()).filter(Number.isFinite).sort((a,b) => b - a)[0];
 }
 
+function articleXHours(article, topic) {
+  if (!article?.published_at || topic?.peak_bin_index == null || !state.data?.generated_at) return null;
+
+  const generated = new Date(state.data.generated_at).getTime();
+  const published = new Date(article.published_at).getTime();
+  if (!Number.isFinite(generated) || !Number.isFinite(published)) return null;
+
+  const windowHours = state.data.window_hours || 168;
+  const binHours = state.data.bin_hours || 3;
+  const start = generated - windowHours * 3600 * 1000;
+  const idx = Math.floor((published - start) / (binHours * 3600 * 1000));
+
+  if (!Number.isFinite(idx)) return null;
+  return Math.max(0, (idx - topic.peak_bin_index) * binHours);
+}
+
+function nearestSeriesPoint(topic, xHours) {
+  const series = topic?.series || [];
+  if (!series.length || xHours == null) return null;
+  return series.reduce((best, point) => {
+    if (!best) return point;
+    return Math.abs(Number(point.x_hours) - xHours) < Math.abs(Number(best.x_hours) - xHours)
+      ? point
+      : best;
+  }, null);
+}
+
+function storyStickiness(article, topic) {
+  const fit = topic?.fit || {};
+  const formal = fit.fit_status === 'formal';
+
+  if (!formal) {
+    return {
+      score: 0,
+      residual: null,
+      expected: null,
+      xHours: articleXHours(article, topic),
+      postLambda: false,
+      role: 'latest activity'
+    };
+  }
+
+  const xHours = articleXHours(article, topic);
+  const point = nearestSeriesPoint(topic, xHours);
+  const expected = point ? fitValue(point, topic) : null;
+  const observed = point ? observedValue(point) : null;
+  const residual = observed == null || expected == null ? 0 : Math.max(0, observed - expected);
+  const tau = Number(fit.tau_hours) || 0;
+  const postLambda = tau > 0 && xHours != null && xHours >= tau;
+
+  const ageWeight = tau > 0 && xHours != null
+    ? 0.45 + 0.55 * Math.min(1, xHours / tau)
+    : 0.45;
+
+  const postBonus = postLambda && residual > 0 ? 0.18 : 0;
+  const score = Math.round(100 * Math.min(1, residual * 2.2 * ageWeight + postBonus));
+
+  let role = 'decays with baseline';
+  if (score > 0 && postLambda) role = 'post-λq survivor';
+  else if (score > 0) role = 'positive S2 residual';
+
+  return {
+    score,
+    residual,
+    expected,
+    xHours,
+    postLambda,
+    role
+  };
+}
+
+function topicStickiness(topic) {
+  const articles = state.data?.articles || [];
+  const scores = articles
+    .filter(article => article.topic === topic.key)
+    .map(article => storyStickiness(article, topic).score)
+    .sort((a, b) => b - a);
+
+  if (!scores.length) return 0;
+  const top = scores.slice(0, 5);
+  return top.reduce((sum, value) => sum + value, 0) / top.length;
+}
+
 function getTopicsSorted() {
   const topics = [...(state.data?.topics || [])];
   topics.sort((a, b) => {
+    if (state.sort === 'stickiness') return topicStickiness(b) - topicStickiness(a);
     if (state.sort === 'lambda') return (b.fit?.tau_hours || 0) - (a.fit?.tau_hours || 0);
     if (state.sort === 'dust') return (topicDust(b) || 0) - (topicDust(a) || 0);
     if (state.sort === 'fit') return (b.fit?.log_r2 || -10) - (a.fit?.log_r2 || -10);
@@ -545,21 +629,64 @@ function renderStories() {
   const topic = selectedTopic();
   const selected = topic?.key;
   const articles = state.data?.articles || [];
-  const filtered = selected ? articles.filter(a => a.topic === selected).slice(0, 18) : articles.slice(0, 18);
+  const formal = topic?.fit?.fit_status === 'formal';
+
+  let filtered = selected
+    ? articles.filter(article => article.topic === selected)
+    : [...articles];
+
+  if (formal) {
+    filtered = filtered
+      .map(article => ({ article, sticky: storyStickiness(article, topic) }))
+      .sort((a, b) => {
+        if (b.sticky.score !== a.sticky.score) return b.sticky.score - a.sticky.score;
+        return new Date(b.article.published_at).getTime() - new Date(a.article.published_at).getTime();
+      })
+      .slice(0, 18);
+  } else {
+    filtered = filtered
+      .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
+      .slice(0, 18)
+      .map(article => ({ article, sticky: storyStickiness(article, topic) }));
+  }
+
   els.storyList.innerHTML = '';
-  els.storyCount.textContent = `${filtered.length} shown`;
+  els.storyCount.textContent = formal
+    ? `${filtered.length} sticky-ranked`
+    : `${filtered.length} latest`;
+
   if (!filtered.length) {
     els.storyList.innerHTML = '<div class="empty-state">No live stories yet for this topic. Run the scheduled update workflow or wait for the next RSS batch.</div>';
     return;
   }
-  filtered.forEach(article => {
+
+  filtered.forEach(({ article, sticky }) => {
     const node = els.storyTemplate.content.cloneNode(true);
-    node.querySelector('.story__meta').textContent = `${article.source || 'Unknown'} · ${fmtDate(article.published_at)} · ${ageLabel(article.published_at)}`;
+
+    const meta = [
+      article.source || 'Unknown',
+      fmtDate(article.published_at),
+      ageLabel(article.published_at)
+    ];
+
+    if (formal) {
+      meta.push(`stick ${sticky.score}/100`);
+      if (sticky.residual != null) meta.push(`res +${fmtNumber(sticky.residual, 3)}`);
+      if (sticky.xHours != null) meta.push(`${fmtHours(sticky.xHours)} after peak`);
+      meta.push(sticky.role);
+    }
+
+    node.querySelector('.story__meta').textContent = meta.join(' · ');
+
     const link = node.querySelector('a');
     link.href = article.url || '#';
     link.textContent = article.title || '(untitled)';
     if (!article.url) link.removeAttribute('href');
-    node.querySelector('.story__topic').textContent = article.topic_label || article.topic || 'General';
+
+    node.querySelector('.story__topic').textContent = formal
+      ? (sticky.score > 0 ? `stick ${sticky.score}` : sticky.role)
+      : (article.topic_label || article.topic || 'General');
+
     els.storyList.appendChild(node);
   });
 }
