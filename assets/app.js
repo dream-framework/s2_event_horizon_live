@@ -436,7 +436,13 @@ function drawInteractiveChart(topic) {
     backgroundColor: 'transparent',
     color: [c.accent, c.accent2, c.warn, c.good, c.bad],
     animationDuration: 450,
-    grid: { left: 48, right: state.signal === 'corrected' && state.view !== 'residuals' ? 48 : 18, top: 18, bottom: 36, containLabel: false },
+    grid: {
+      left: 48,
+      right: state.signal === 'corrected' && state.view !== 'residuals' ? 52 : 24,
+      top: 20,
+      bottom: 70,
+      containLabel: true
+    },
     tooltip: {
       trigger: 'axis',
       confine: false,
@@ -471,9 +477,29 @@ function drawInteractiveChart(topic) {
     },
     dataZoom: [
       { type: 'inside', throttle: 40, xAxisIndex: 0 },
-      { type: 'slider', xAxisIndex: 0, height: 16, bottom: 6, borderColor: c.line, fillerColor: state.theme === 'dark' ? 'rgba(125,211,252,.16)' : 'rgba(3,105,161,.16)', handleStyle: { color: c.accent }, textStyle: { color: c.muted } }
-    ],
-    xAxis: { type: 'value', name: 'hours since peak', min: 0, max: maxX, nameTextStyle: { color: c.muted }, axisLabel: { color: c.muted, formatter: v => `${fmtNumber(v, 0)}h` }, axisLine: { lineStyle: { color: c.line } }, splitLine: { lineStyle: { color: c.line, type: 'dashed', opacity: 0.65 } } },
+      {
+        type: 'slider',
+        xAxisIndex: 0,
+        height: 12,
+        bottom: 8,
+        borderColor: c.line,
+        fillerColor: state.theme === 'dark' ? 'rgba(125,211,252,.16)' : 'rgba(3,105,161,.16)',
+        handleStyle: { color: c.accent },
+        textStyle: { color: c.muted, fontSize: 10 }
+      }
+      ],
+    xAxis: {
+      type: 'value',
+      min: 0,
+      max: maxX,
+      axisLabel: {
+        color: c.muted,
+        margin: 12,
+        formatter: v => `${fmtNumber(v, 0)}h`
+      },
+      axisLine: { lineStyle: { color: c.line } },
+      splitLine: { lineStyle: { color: c.line, type: 'dashed', opacity: 0.65 } }
+    },
     yAxis: [
       { type: 'value', name: yName, min: yMin, max: yMax, nameTextStyle: { color: c.muted }, axisLabel: { color: c.muted }, axisLine: { lineStyle: { color: c.line } }, splitLine: { lineStyle: { color: c.line, type: 'dashed', opacity: 0.65 } } },
       { type: 'value', name: 'activity', min: 0, max: 1.15, show: state.signal === 'corrected' && state.view !== 'residuals', nameTextStyle: { color: c.muted }, axisLabel: { color: c.muted }, axisLine: { lineStyle: { color: c.line } }, splitLine: { show: false } }
