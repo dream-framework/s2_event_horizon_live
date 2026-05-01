@@ -468,12 +468,25 @@ function drawInteractiveChart(topic) {
     },
     legend: { show: false },
     toolbox: {
-      show: true,
-      right: 6,
+      show: state.chartToolsVisible,
+      left: 'center',
       top: 8,
-      iconStyle: { borderColor: c.muted },
-      emphasis: { iconStyle: { borderColor: c.accent } },
-      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: { backgroundColor: state.theme === 'dark' ? '#0a0f1e' : '#eef3fb' } }
+      orient: 'horizontal',
+      itemSize: 14,
+      itemGap: 10,
+      feature: {
+        dataZoom: {},
+        restore: {},
+        saveAsImage: {}
+      },
+      iconStyle: {
+        borderColor: c.muted
+      },
+      emphasis: {
+        iconStyle: {
+          borderColor: c.accent
+        }
+      }
     },
     dataZoom: [
       { type: 'inside', throttle: 40, xAxisIndex: 0 },
